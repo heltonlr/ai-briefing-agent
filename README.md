@@ -141,17 +141,3 @@ Próximas perguntas:
 3. O analista pode editar a sugestão livremente ou precisa de aprovação?
 ```
 
----
-
-## Conceitos aplicados
-
-Este projeto aplica diretamente conteúdo do curso **AI Product Specialist (PM3)**:
-
-- **Módulo 3** — Prompts estruturados, Outputs Estruturados (JSON), Self-Critic/Reflection, Gestão de Prompts
-- **Módulo 1** — Métricas L1/L2 como output estruturado do agente
-
----
-
-## Licença
-
-MIT
