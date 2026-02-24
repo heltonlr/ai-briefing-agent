@@ -96,7 +96,7 @@ async function callClaude(prompt) {
     },
     body: JSON.stringify({
       model: import.meta.env.VITE_ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
-      max_tokens: 1024,
+      max_tokens: 4096,
       messages: [{ role: "user", content: prompt }],
     }),
   });
