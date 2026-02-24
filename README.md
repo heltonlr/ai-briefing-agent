@@ -1,5 +1,6 @@
 # AI Briefing Agent · Self-Critic Loop
 
+
 Um agente que transforma demandas vagas de stakeholders em briefings estruturados e acionáveis, usando um pipeline de **3 chamadas encadeadas** à API da Anthropic com padrão de autorrevisão (self-critic).
 
 ---
