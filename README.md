@@ -106,6 +106,22 @@ npm run dev
 
 ---
 
+## Estrutura do projeto
+
+```
+ai-briefing-agent/
+├── src/
+│   ├── BriefingAgent.jsx   # Componente principal + lógica do agente
+│   └── main.jsx            # Entry point React
+├── index.html
+├── package.json
+├── vite.config.js
+├── .env.example            # Template para variáveis de ambiente
+└── .gitignore
+```
+
+---
+
 ## Estrutura dos prompts
 
 Os 3 prompts estão no objeto `PROMPTS` dentro do componente e podem ser ajustados sem alterar a lógica do agente:
