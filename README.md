@@ -70,7 +70,7 @@ Sem o loop de revisão, LLMs tendem a preencher campos com respostas genéricas 
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/ai-briefing-agent.git
+git clone https://github.com/heltonlr/ai-briefing-agent.git
 cd ai-briefing-agent
 ```
 
