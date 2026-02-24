@@ -1,7 +1,7 @@
 {
-  "name": "ai-briefing-agent",
+  "name": "self-critic-prompt-pipeline",
   "version": "1.0.0",
-  "description": "Agente que transforma demandas vagas em briefings acionáveis com Self-Critic Loop",
+  "description": "Pipeline encadeado de prompts que transforma demandas vagas em briefings acionáveis com padrão self-critic",
   "type": "module",
   "scripts": {
     "dev": "vite",

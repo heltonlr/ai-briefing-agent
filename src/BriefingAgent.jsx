@@ -199,7 +199,7 @@ export default function BriefingAgent() {
               animation: phase === "running" ? "pulse 1s infinite" : "none",
             }} />
             <span style={{ color: "#7d8590", fontSize: 11, letterSpacing: 3, textTransform: "uppercase" }}>
-              AI Briefing Agent · Self-Critic Loop
+              Self-Critic Prompt Pipeline
             </span>
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#e6edf3", margin: 0, letterSpacing: -0.5 }}>
