@@ -1,10 +1,8 @@
 import { useState } from "react";
 
-const STEPS = [
-  { id: "generate", label: "Geração", icon: "⬡", desc: "Estrutura o briefing" },
-  { id: "critic", label: "Self-Critic", icon: "⬡", desc: "Avalia e melhora" },
-  { id: "consolidate", label: "Consolidação", icon: "⬡", desc: "Output final" },
-];
+// ---------------------------------------------------------------------------
+// Prompts
+// ---------------------------------------------------------------------------
 
 const PROMPTS = {
   generate: (input) => `Você é um AI Product Specialist sênior. Dado o input abaixo, gere um briefing estruturado.
@@ -58,7 +56,7 @@ ${briefingJson}`,
 
 Regras:
 - Para campos APROVADO: use o valor original
-- Para campos FRACO: use a versão_melhorada do revisor
+- Para campos FRACO: use a versao_melhorada do revisor
 - Para campos AUSENTE: marque como "⚠ Requer definição com stakeholder"
 - Gere as "proximas_perguntas": máximo 3 perguntas priorizadas para o stakeholder, focando nas lacunas mais críticas
 
@@ -83,29 +81,45 @@ REVISÃO CRÍTICA:
 ${criticJson}`,
 };
 
+// ---------------------------------------------------------------------------
+// API
+// ---------------------------------------------------------------------------
+
 async function callClaude(prompt) {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${import.meta.env.VITE_ANTHROPIC_API_KEY}`,
+      "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
       "anthropic-version": "2023-06-01",
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
+      model: import.meta.env.VITE_ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
+      max_tokens: 1024,
       messages: [{ role: "user", content: prompt }],
     }),
   });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `HTTP ${response.status}`);
+  }
+
   const data = await response.json();
   const text = data.content?.map((b) => b.text || "").join("") || "";
   return JSON.parse(text.replace(/```json|```/g, "").trim());
 }
 
-const statusColor = { APROVADO: "#22c55e", FRACO: "#f59e0b", AUSENTE: "#ef4444" };
-const statusBg = { APROVADO: "#052e16", FRACO: "#1c1007", AUSENTE: "#1c0505" };
-const confidenceColor = { ALTA: "#22c55e", MEDIA: "#f59e0b", BAIXA: "#ef4444" };
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const STEPS = [
+  { id: "generate", label: "Geração", desc: "Estrutura o briefing" },
+  { id: "critic", label: "Self-Critic", desc: "Avalia e melhora" },
+  { id: "consolidate", label: "Consolidação", desc: "Output final" },
+];
 
 const FIELD_LABELS = {
   objetivo_de_negocio: "Objetivo de negócio",
@@ -117,16 +131,25 @@ const FIELD_LABELS = {
   riscos_identificados: "Riscos identificados",
 };
 
+const STATUS_COLOR = { APROVADO: "#22c55e", FRACO: "#f59e0b", AUSENTE: "#ef4444" };
+const STATUS_BG    = { APROVADO: "#052e16", FRACO: "#1c1007", AUSENTE: "#1c0505" };
+const CONFIDENCE_COLOR = { ALTA: "#22c55e", MEDIA: "#f59e0b", BAIXA: "#ef4444" };
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export default function BriefingAgent() {
-  const [input, setInput] = useState("");
-  const [phase, setPhase] = useState("idle"); // idle | running | done | error
+  const [input, setInput]       = useState("");
+  const [phase, setPhase]       = useState("idle"); // idle | running | done | error
   const [activeStep, setActiveStep] = useState(-1);
-  const [results, setResults] = useState({ generate: null, critic: null, consolidate: null });
-  const [error, setError] = useState("");
+  const [results, setResults]   = useState({ generate: null, critic: null, consolidate: null });
+  const [error, setError]       = useState("");
   const [activeTab, setActiveTab] = useState("consolidate");
 
   async function runAgent() {
     if (!input.trim()) return;
+
     setPhase("running");
     setError("");
     setResults({ generate: null, critic: null, consolidate: null });
@@ -164,8 +187,9 @@ export default function BriefingAgent() {
       color: "#c9d1d9",
       padding: "32px 24px",
     }}>
-      {/* Header */}
       <div style={{ maxWidth: 800, margin: "0 auto" }}>
+
+        {/* Header */}
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
             <div style={{
@@ -185,30 +209,35 @@ export default function BriefingAgent() {
 
         {/* Input */}
         <div style={{ marginBottom: 24 }}>
-          <label style={{ display: "block", fontSize: 11, color: "#7d8590", letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>
+          <label style={{
+            display: "block", fontSize: 11, color: "#7d8590",
+            letterSpacing: 2, textTransform: "uppercase", marginBottom: 8,
+          }}>
             Demanda do stakeholder
           </label>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ex: Preciso de uma feature de IA pra ajudar o time de CS a responder clientes mais rápido..."
+            disabled={phase === "running"}
             style={{
               width: "100%", height: 96, background: "#0d1117",
-              border: "1px solid #21262d", borderRadius: 6, padding: "12px 14px",
-              color: "#c9d1d9", fontFamily: "inherit", fontSize: 13, resize: "vertical",
-              outline: "none", boxSizing: "border-box", lineHeight: 1.6,
+              border: "1px solid #21262d", borderRadius: 6,
+              padding: "12px 14px", color: "#c9d1d9",
+              fontFamily: "inherit", fontSize: 13,
+              resize: "vertical", outline: "none",
+              boxSizing: "border-box", lineHeight: 1.6,
             }}
-            disabled={phase === "running"}
           />
         </div>
 
-        {/* Pipeline steps */}
+        {/* Pipeline + Run button */}
         <div style={{ display: "flex", gap: 8, marginBottom: 24, alignItems: "center" }}>
           {STEPS.map((step, i) => (
             <div key={step.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{
-                display: "flex", alignItems: "center", gap: 8, padding: "6px 12px",
-                borderRadius: 4, fontSize: 12,
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "6px 12px", borderRadius: 4, fontSize: 12,
                 background: activeStep === i ? "#1c2d3a" : results[step.id] ? "#0d2010" : "#0d1117",
                 border: `1px solid ${activeStep === i ? "#3b82f6" : results[step.id] ? "#22c55e44" : "#21262d"}`,
                 color: activeStep === i ? "#93c5fd" : results[step.id] ? "#22c55e" : "#7d8590",
@@ -224,16 +253,18 @@ export default function BriefingAgent() {
           ))}
 
           <div style={{ flex: 1 }} />
+
           <button
             onClick={runAgent}
             disabled={phase === "running" || !input.trim()}
             style={{
-              padding: "8px 20px", borderRadius: 4, fontSize: 12, fontFamily: "inherit",
+              padding: "8px 20px", borderRadius: 4, fontSize: 12,
+              fontFamily: "inherit", fontWeight: 700, letterSpacing: 1,
               background: phase === "running" ? "#0d1117" : "#1f6feb",
               color: phase === "running" ? "#7d8590" : "#fff",
               border: `1px solid ${phase === "running" ? "#21262d" : "#388bfd"}`,
               cursor: phase === "running" || !input.trim() ? "not-allowed" : "pointer",
-              letterSpacing: 1, fontWeight: 700, transition: "all 0.2s",
+              transition: "all 0.2s",
             }}
           >
             {phase === "running" ? "processando..." : "→ executar"}
@@ -242,7 +273,11 @@ export default function BriefingAgent() {
 
         {/* Error */}
         {error && (
-          <div style={{ padding: 12, background: "#1c0505", border: "1px solid #f8514966", borderRadius: 6, color: "#f85149", fontSize: 12, marginBottom: 16 }}>
+          <div style={{
+            padding: 12, marginBottom: 16, borderRadius: 6,
+            background: "#1c0505", border: "1px solid #f8514966",
+            color: "#f85149", fontSize: 12,
+          }}>
             {error}
           </div>
         )}
@@ -250,23 +285,21 @@ export default function BriefingAgent() {
         {/* Results */}
         {(results.generate || results.critic || results.consolidate) && (
           <div>
-            {/* Tabs */}
             <div style={{ display: "flex", gap: 2, marginBottom: 16, borderBottom: "1px solid #21262d" }}>
               {[
-                { key: "consolidate", label: "Output Final", available: !!results.consolidate },
-                { key: "critic", label: "Self-Critic", available: !!results.critic },
-                { key: "generate", label: "Rascunho", available: !!results.generate },
+                { key: "consolidate", label: "Output Final",  available: !!results.consolidate },
+                { key: "critic",      label: "Self-Critic",   available: !!results.critic },
+                { key: "generate",    label: "Rascunho",      available: !!results.generate },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   onClick={() => tab.available && setActiveTab(tab.key)}
                   style={{
-                    padding: "6px 16px", fontSize: 12, fontFamily: "inherit",
+                    padding: "6px 16px 10px", fontSize: 12, fontFamily: "inherit",
                     background: "transparent", border: "none",
                     borderBottom: activeTab === tab.key ? "2px solid #1f6feb" : "2px solid transparent",
                     color: !tab.available ? "#3b4048" : activeTab === tab.key ? "#e6edf3" : "#7d8590",
                     cursor: tab.available ? "pointer" : "not-allowed",
-                    paddingBottom: 10,
                   }}
                 >
                   {tab.label}
@@ -274,7 +307,6 @@ export default function BriefingAgent() {
               ))}
             </div>
 
-            {/* Generate tab */}
             {activeTab === "generate" && results.generate && (
               <Panel title="Briefing Inicial (pré-revisão)">
                 <div style={{ display: "grid", gap: 8 }}>
@@ -283,9 +315,16 @@ export default function BriefingAgent() {
                   ))}
                   {results.generate.lacunas_de_informacao?.length > 0 && (
                     <div style={{ marginTop: 8 }}>
-                      <div style={{ fontSize: 11, color: "#7d8590", letterSpacing: 1, marginBottom: 6 }}>LACUNAS IDENTIFICADAS</div>
+                      <div style={{ fontSize: 11, color: "#7d8590", letterSpacing: 1, marginBottom: 6 }}>
+                        LACUNAS IDENTIFICADAS
+                      </div>
                       {results.generate.lacunas_de_informacao.map((l, i) => (
-                        <div key={i} style={{ fontSize: 12, color: "#f59e0b", padding: "4px 0", borderBottom: "1px solid #1c1007" }}>⚠ {l}</div>
+                        <div key={i} style={{
+                          fontSize: 12, color: "#f59e0b",
+                          padding: "4px 0", borderBottom: "1px solid #1c1007",
+                        }}>
+                          ⚠ {l}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -293,25 +332,31 @@ export default function BriefingAgent() {
               </Panel>
             )}
 
-            {/* Critic tab */}
             {activeTab === "critic" && results.critic && (
               <Panel title={`Revisão Crítica · Score: ${results.critic.score_geral}/100`}>
-                <div style={{ padding: 10, background: "#0d1117", borderRadius: 4, marginBottom: 16, fontSize: 12, color: "#8b949e", lineHeight: 1.6 }}>
+                <div style={{
+                  padding: 10, marginBottom: 16, borderRadius: 4,
+                  background: "#0d1117", fontSize: 12, color: "#8b949e", lineHeight: 1.6,
+                }}>
                   {results.critic.resumo_critico}
                 </div>
                 <div style={{ display: "grid", gap: 8 }}>
                   {Object.entries(FIELD_LABELS).map(([key, label]) => {
-                    const av = results.critic.avaliacoes[key];
+                    const av = results.critic.avaliacoes?.[key];
                     if (!av) return null;
                     return (
                       <div key={key} style={{
                         padding: "10px 12px", borderRadius: 4,
-                        background: statusBg[av.status] || "#0d1117",
-                        border: `1px solid ${statusColor[av.status]}22`,
+                        background: STATUS_BG[av.status] || "#0d1117",
+                        border: `1px solid ${STATUS_COLOR[av.status]}22`,
                       }}>
                         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: av.versao_melhorada ? 6 : 0 }}>
-                          <span style={{ fontSize: 11, color: "#7d8590", letterSpacing: 1 }}>{label.toUpperCase()}</span>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: statusColor[av.status], letterSpacing: 1 }}>{av.status}</span>
+                          <span style={{ fontSize: 11, color: "#7d8590", letterSpacing: 1 }}>
+                            {label.toUpperCase()}
+                          </span>
+                          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: STATUS_COLOR[av.status] }}>
+                            {av.status}
+                          </span>
                         </div>
                         {av.versao_melhorada && (
                           <div style={{ fontSize: 12, color: "#c9d1d9", lineHeight: 1.5 }}>
@@ -325,15 +370,13 @@ export default function BriefingAgent() {
               </Panel>
             )}
 
-            {/* Consolidate tab */}
             {activeTab === "consolidate" && results.consolidate && (
               <Panel title={results.consolidate.titulo || "Briefing Consolidado"}>
                 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
                   <span style={{
-                    fontSize: 10, fontWeight: 700, letterSpacing: 2,
-                    color: confidenceColor[results.consolidate.confianca_geral] || "#7d8590",
-                    padding: "3px 8px", borderRadius: 3,
-                    border: `1px solid ${confidenceColor[results.consolidate.confianca_geral]}44`,
+                    fontSize: 10, fontWeight: 700, letterSpacing: 2, padding: "3px 8px", borderRadius: 3,
+                    color: CONFIDENCE_COLOR[results.consolidate.confianca_geral] || "#7d8590",
+                    border: `1px solid ${CONFIDENCE_COLOR[results.consolidate.confianca_geral]}44`,
                   }}>
                     CONFIANÇA {results.consolidate.confianca_geral}
                   </span>
@@ -352,9 +395,8 @@ export default function BriefingAgent() {
                     </div>
                     {results.consolidate.proximas_perguntas.map((q, i) => (
                       <div key={i} style={{
-                        display: "flex", gap: 10, padding: "10px 12px",
-                        marginBottom: 6, background: "#0d1117",
-                        border: "1px solid #21262d", borderRadius: 4,
+                        display: "flex", gap: 10, padding: "10px 12px", marginBottom: 6,
+                        background: "#0d1117", border: "1px solid #21262d", borderRadius: 4,
                       }}>
                         <span style={{ color: "#1f6feb", fontWeight: 700, fontSize: 12, minWidth: 16 }}>{i + 1}.</span>
                         <span style={{ fontSize: 12, color: "#c9d1d9", lineHeight: 1.5 }}>{q}</span>
@@ -381,13 +423,17 @@ export default function BriefingAgent() {
       <style>{`
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         textarea:focus { border-color: #3b82f6 !important; }
-        ::-webkit-scrollbar { width: 4px; } 
+        ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #0d1117; }
         ::-webkit-scrollbar-thumb { background: #21262d; }
       `}</style>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 
 function Panel({ title, children }) {
   return (
@@ -410,7 +456,11 @@ function FieldRow({ label, value }) {
       <span style={{ fontSize: 11, color: "#7d8590", letterSpacing: 1, paddingTop: 2 }}>
         {label.toUpperCase()}
       </span>
-      <span style={{ fontSize: 12, color: isEmpty ? "#3b4048" : "#c9d1d9", lineHeight: 1.5, fontStyle: isEmpty ? "italic" : "normal" }}>
+      <span style={{
+        fontSize: 12, lineHeight: 1.5,
+        color: isEmpty ? "#3b4048" : "#c9d1d9",
+        fontStyle: isEmpty ? "italic" : "normal",
+      }}>
         {isEmpty ? "—" : value}
       </span>
     </div>
@@ -421,19 +471,21 @@ function CopyButton({ data }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
-    const text = Object.entries({
+    const fields = Object.entries({
       "Objetivo de Negócio": data.objetivo_de_negocio,
-      "Usuário-alvo": data.usuario_alvo,
-      "Problema Core": data.problema_core,
+      "Usuário-alvo":        data.usuario_alvo,
+      "Problema Core":       data.problema_core,
       "Hipótese de Solução": data.hipotese_de_solucao,
-      "Métricas L1": data.metricas_l1,
-      "Métricas L2": data.metricas_l2,
-      "Riscos": data.riscos_identificados,
-    }).map(([k, v]) => `**${k}:** ${v}`).join("\n") +
-      "\n\n**Próximas perguntas:**\n" +
-      data.proximas_perguntas?.map((q, i) => `${i + 1}. ${q}`).join("\n");
+      "Métricas L1":         data.metricas_l1,
+      "Métricas L2":         data.metricas_l2,
+      "Riscos":              data.riscos_identificados,
+    }).map(([k, v]) => `**${k}:** ${v}`).join("\n");
 
-    navigator.clipboard.writeText(text).then(() => {
+    const questions = data.proximas_perguntas
+      ?.map((q, i) => `${i + 1}. ${q}`)
+      .join("\n") || "";
+
+    navigator.clipboard.writeText(`${fields}\n\n**Próximas perguntas:**\n${questions}`).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -443,10 +495,11 @@ function CopyButton({ data }) {
     <button
       onClick={handleCopy}
       style={{
-        marginTop: 16, padding: "8px 16px", fontSize: 11, fontFamily: "inherit",
+        marginTop: 16, padding: "8px 16px", fontSize: 11,
+        fontFamily: "inherit", letterSpacing: 1,
         background: "transparent", border: "1px solid #21262d", borderRadius: 4,
-        color: copied ? "#22c55e" : "#7d8590", cursor: "pointer", letterSpacing: 1,
-        transition: "all 0.2s",
+        color: copied ? "#22c55e" : "#7d8590",
+        cursor: "pointer", transition: "all 0.2s",
       }}
     >
       {copied ? "✓ copiado" : "copiar markdown"}
